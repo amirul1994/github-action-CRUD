@@ -1,0 +1,86 @@
+name: Deploy CRUD Application
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  detect-changes:
+    runs-on: self-hosted
+    outputs:
+      deploy_all: ${{ steps.detect.outputs.DEPLOY_ALL }}
+      services: ${{ steps.detect.outputs.SERVICES }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Make scripts executable
+        run: chmod +x .github/scripts/*.sh
+
+      - name: Detect changes
+        id: detect
+        run: .github/scripts/detect-changes.sh
+      
+      - name: Display detection results
+        run: |
+          echo "Deploy All: ${{ steps.detect.outputs.DEPLOY_ALL }}"
+          echo "Sevices: ${{ steps.detect.outputs.SERVICES }}"
+
+  deploy:
+    needs: detect-changes
+    runs-on: self-hosted
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Verify application directory
+        run: |
+          if [ ! -d "/opt/crud-app" ]; then
+            echo "❌ Application directory does not exist."
+            echo "Creating application directory..."
+            sudo mkdir -p /opt/crud-app
+            sudo chown -R github-runner:github-runner /opt/crud-app
+          fi 
+
+          if [ ! -w "/opt/crud-app" ]; then
+            echo "No write access to /opt/crud-app"
+            echo "Fixing permissions..."
+            sudo chown -R github-runner:github-runner /opt/crud-app
+          fi
+
+          echo "✅ Application directory verified"
+          ls -la /opt/crud-app
+      
+      - name: Initialize or update repository
+        run: |
+          cd /opt/crud-app
+
+          if [  ! -d ".git" ]; then 
+            echo "🔄 First time setup - cloning repository..."
+            git clone https://github.com/${{ github.repository }}.git .
+          else
+            echo "✅ Repository exists - updating..."
+            git fetch origin
+            git reset --hard origin/main
+          fi
+
+          echo "📁 Repository status:"
+          git status --short
+      
+      - name: Make deployment scripts executable
+        run:
+          cd /opt/crud-app
+          chmod +x .github/scripts/*.sh
+      
+      - name: Deploy services
+        run:
+          cd /opt/crud-app
+          .github/scripts/deploy.sh "${{ needs.detect-changes.outputs.deploy_all }}" "${{ needs.detect-changes.outputs.services }}"
+
+      - name: Deployment summary
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "DEPLOY_ALL: ${{ needs.detect-changes.outputs.deploy_all }}"
+          echo "Services: {{ needs.detect-chages.outputs.services }}"
