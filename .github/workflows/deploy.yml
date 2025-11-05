@@ -70,12 +70,12 @@ jobs:
           git status --short
       
       - name: Make deployment scripts executable
-        run:
+        run: |
           cd /opt/crud-app
           chmod +x .github/scripts/*.sh
       
       - name: Deploy services
-        run:
+        run: |
           cd /opt/crud-app
           .github/scripts/deploy.sh "${{ needs.detect-changes.outputs.deploy_all }}" "${{ needs.detect-changes.outputs.services }}"
 
