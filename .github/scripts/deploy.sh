@@ -32,7 +32,7 @@ wait_for_service() {
    echo "Waiting for $service to be healthy..."
    
    while [ $attempt -le $max_attempts ]; do
-       if docker-compose ps | grep "$service" | grep -q "Up"; then
+       if docker compose ps | grep "$service" | grep -q "Up"; then
            echo "✓ $service is healthy"
            return 0
        fi
@@ -51,16 +51,16 @@ deploy_all_services() {
    echo "Deploying all services..."
    
    echo "Stopping all services..."
-   docker-compose down
+   docker compose down
    
    echo "Removing old volumes (if any)..."
-   docker-compose down -v 2>/dev/null || true
+   docker compose down -v 2>/dev/null || true
    
    echo "Pulling latest images..."
-   docker-compose pull 2>/dev/null || echo "Building images locally..."
+   docker compose pull 2>/dev/null || echo "Building images locally..."
    
    echo "Building and starting all services..."
-   docker-compose up -d --build
+   docker compose up -d --build
    
    # Wait for core services
    wait_for_service "db"
@@ -87,16 +87,16 @@ deploy_specific_services() {
        # Handle service dependencies
        if [ "$service" = "backend" ]; then
            # Ensure database and redis are running
-           docker-compose up -d db redis
+           docker compose up -d db redis
            wait_for_service "db"
            wait_for_service "redis"
        fi
        
        # Pull latest image for the service
-       docker-compose pull "$service" 2>/dev/null || echo "No pre-built image for $service, will build locally"
+       docker compose pull "$service" 2>/dev/null || echo "No pre-built image for $service, will build locally"
        
        # Build and restart the service
-       docker-compose up -d --build --no-deps "$service"
+       docker compose up -d --build --no-deps "$service"
        
        # Wait for service to be ready
        wait_for_service "$service"
