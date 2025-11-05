@@ -122,4 +122,4 @@ echo "=== Deployment completed successfully ==="
 # Show running services
 echo ""
 echo "Running services:"
-docker-compose ps
+docker compose ps
